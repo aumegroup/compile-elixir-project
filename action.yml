@@ -25,6 +25,7 @@ runs:
 
     - name: Get tags
       run: git fetch --tags -f
+      shell: bash
 
     - name: Get deps cache
       uses: actions/cache@v3
@@ -54,16 +55,20 @@ runs:
 
     - name: Clean to rule out incremental build as a source of flakiness
       if: github.run_attempt != '1'
+      shell: bash
       run: |
         mix deps.clean --all
         mix clean
 
     - name: Install Dependencies
+      shell: bash
       run: mix deps.get
 
     - name: Compile Dependencies
+      shell: bash
       run: mix loadpaths
 
     - name: Compile Application
+      shell: bash
       run: mix compile ${{ inputs.build-flags }}
 
