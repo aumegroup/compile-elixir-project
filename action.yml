@@ -1,0 +1,69 @@
+name: Compile Project
+description: Configures Elixir, fetches dependencies, and manages build caching.
+branding:
+  icon: 'award'
+  color: 'green'
+inputs:
+  build-flags:
+    required: false
+    type: string
+    default: '--all-warnings'
+    description: Flags to pass to mix compile
+  cache-key:
+    required: false
+    type: string
+    default: 'v1'
+    description: If you need to reset the cache for some reason, you can change this key.
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Get tags
+      run: git fetch --tags -f
+
+    - name: Get deps cache
+      uses: actions/cache@v3
+      with:
+        path: deps/
+        key: deps-${{ inputs.cache-key }}-${{ runner.os }}-${{ hashFiles('**/mix.lock') }}
+        restore-keys: |
+          deps-${{ inputs.cache-key }}-${{ runner.os }}-
+
+    - name: Get build cache
+      uses: actions/cache@v3
+      id: build-cache
+      with:
+        path: _build/${{env.MIX_ENV}}/
+        key: build-${{ inputs.cache-key }}-${{ runner.os }}-mix-${{ env.MIX_ENV }}-${{ hashFiles('**/mix.lock') }}
+        restore-keys: |
+          build-${{ inputs.cache-key }}-${{ runner.os }}-mix-${{ env.MIX_ENV }}-
+
+    - name: Get Hex cache
+      uses: actions/cache@v3
+      id: hex-cache
+      with:
+        path: ~/.hex
+        key: build-${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+        restore-keys: |
+          build-${{ runner.os }}-mix-
+
+    - name: Clean to rule out incremental build as a source of flakiness
+      if: github.run_attempt != '1'
+      run: |
+        mix deps.clean --all
+        mix clean
+
+    - name: Install Dependencies
+      run: mix deps.get
+
+    - name: Compile Dependencies
+      run: mix loadpaths
+
+    - name: Compile Application
+      run: mix compile ${{ inputs.build-flags }}
+
